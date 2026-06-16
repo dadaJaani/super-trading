@@ -1,0 +1,38 @@
+---
+description: Super Trading platform conventions and agent guidance
+alwaysApply: true
+---
+
+# Super Trading
+
+Read [AGENTS.md](../../AGENTS.md) and [docs/project-status.md](../../docs/project-status.md) for full context.
+
+## Architecture (non-negotiable)
+
+- `bots/` (Python) — all trading logic, ML, OANDA, Redis publish
+- `backend/` (NestJS) — REST + WebSocket relay only; never touch OANDA
+- `frontend/` (Vite React) — dashboard; consumes API + Socket.IO
+- Redis pub/sub connects Python to Nest; Nest forwards to the frontend
+
+## Before editing
+
+1. Check [docs/project-status.md](../../docs/project-status.md) for what's implemented vs stubbed
+2. Keep diffs minimal; match surrounding code style
+3. Never commit `.env` or secrets
+4. Schema changes → `docker/postgres/init.sql` + `make db-reset` (TypeORM `synchronize` is off)
+
+## Run locally
+
+```bash
+make up && make install
+make dev-api   # :3001
+make dev-fe    # :5173
+make dev-bots
+```
+
+## Pitfalls
+
+- `VITE_WS_URL` must be `http://` (Socket.IO), not `ws://`
+- Design doc uses `api/`/`dashboard/` — repo uses `backend/`/`frontend/`
+- Design doc Phase 1 checkmarks are targets, not done work
+- Paper trade only until explicitly approved for live

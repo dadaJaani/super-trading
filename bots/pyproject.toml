@@ -1,0 +1,21 @@
+[project]
+name = "super-trading-bots"
+version = "0.1.0"
+description = "Python bot engine for the super-trading platform"
+requires-python = ">=3.12"
+dependencies = [
+    "redis>=5.0",
+    "psycopg[binary]>=3.1",
+    "python-dotenv>=1.0",
+    "pydantic-settings>=2.0",
+]
+
+# Future ML / broker integrations (uncomment when needed):
+# pandas, scikit-learn, torch, oandapyV20, anthropic, pushover
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["shared", "strategies", "ml"]
