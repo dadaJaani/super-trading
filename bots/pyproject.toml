@@ -8,6 +8,9 @@ dependencies = [
     "psycopg[binary]>=3.1",
     "python-dotenv>=1.0",
     "pydantic-settings>=2.0",
+    "oandapyV20>=0.6",
+    "requests>=2.31",
+    "six>=1.16",
 ]
 
 # Future ML / broker integrations (uncomment when needed):

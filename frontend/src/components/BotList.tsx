@@ -52,7 +52,10 @@ export function BotList({ bots }: BotListProps) {
               <span className={`h-2 w-2 rounded-full ${statusColor(bot.status)}`} />
               <span className="font-medium text-slate-100">{bot.name ?? bot.id}</span>
             </div>
-            <div className="mt-1 text-xs text-slate-400">{bot.instrument}</div>
+            {bot.description ? (
+              <p className="mt-1 text-xs text-slate-400 line-clamp-2">{bot.description}</p>
+            ) : null}
+            <div className="mt-1 text-xs text-slate-500">{bot.instrument}</div>
             <div
               className={`mt-2 text-sm font-mono ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
             >

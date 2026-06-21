@@ -17,6 +17,9 @@ export class Bot {
   name: string | null;
 
   @Column('text', { nullable: true })
+  description: string | null;
+
+  @Column('text', { nullable: true })
   instrument: string | null;
 
   @Column('text', { nullable: true })
@@ -24,6 +27,12 @@ export class Bot {
 
   @Column('text', { nullable: true })
   status: string | null;
+
+  @Column('text', { nullable: true })
+  broker: string | null;
+
+  @Column('text', { name: 'account_ref', nullable: true })
+  accountRef: string | null;
 
   @Column('jsonb', { nullable: true })
   config: Record<string, unknown> | null;

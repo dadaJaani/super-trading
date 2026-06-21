@@ -1,0 +1,13 @@
+{
+  "id": "gold_momentum_v1",
+  "title": "Gold Momentum Bot",
+  "description": "ML momentum strategy on XAU/USD (stub — not yet implemented).",
+  "account": "oanda_paper_1",
+  "strategy": "gold_momentum_v1",
+  "instrument": "XAU_USD",
+  "enabled": false,
+  "params": {
+    "position_size": 1,
+    "risk_pct": 0.01
+  }
+}

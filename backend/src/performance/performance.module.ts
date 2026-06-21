@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BalanceSnapshot } from '../entities/balance-snapshot.entity';
 import { Trade } from '../entities/trade.entity';
 import { PerformanceController } from './performance.controller';
 import { PerformanceService } from './performance.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Trade])],
+  imports: [TypeOrmModule.forFeature([Trade, BalanceSnapshot])],
   controllers: [PerformanceController],
   providers: [PerformanceService],
 })

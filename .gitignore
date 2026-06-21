@@ -33,5 +33,11 @@ __pycache__/
 bots/ml/models/*.pkl
 bots/ml/models/*.pt
 
+# Bot decision logs (local only)
+bots/logs/
+
+# Local broker account overrides (secrets via env var names)
+bots/config/accounts.local.json
+
 # Docker volumes (local only)
 .docker/

@@ -13,17 +13,22 @@ export class TradesService {
     private readonly signalsRepository: Repository<Signal>,
   ) {}
 
-  findTradesByBot(botId: string): Promise<Trade[]> {
+  findTradesByBot(botId: string, status?: string): Promise<Trade[]> {
+    const where: { botId: string; status?: string } = { botId };
+    if (status) {
+      where.status = status;
+    }
     return this.tradesRepository.find({
-      where: { botId },
+      where,
       order: { openTime: 'DESC' },
     });
   }
 
-  findSignalsByBot(botId: string): Promise<Signal[]> {
+  findSignalsByBot(botId: string, limit?: number): Promise<Signal[]> {
     return this.signalsRepository.find({
       where: { botId },
       order: { time: 'DESC' },
+      take: limit ?? 50,
     });
   }
 }

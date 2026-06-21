@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from shared.oanda_client import OandaClient
+    from shared.redis_client import RedisClient
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +20,13 @@ class BaseBot(ABC):
     uses_models: list[str] = []
     uses_sentiment: bool = False
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        redis: RedisClient | None = None,
+        oanda: OandaClient | None = None,
+    ) -> None:
+        self._redis = redis
+        self._oanda = oanda
         self._running = False
 
     def start(self) -> None:
@@ -49,4 +59,15 @@ class BaseBot(ABC):
 
     def publish_state(self) -> None:
         """Push current state to Redis for the dashboard."""
-        logger.debug("Publishing state for %s (stub)", self.id)
+        if self._redis is None:
+            logger.debug("Publishing state for %s (no redis)", self.id)
+            return
+        self._redis.publish(
+            f"bot:state:{self.id}",
+            {
+                "botId": self.id,
+                "pnl": 0,
+                "openTrade": None,
+                "lastSignal": None,
+            },
+        )

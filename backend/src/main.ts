@@ -14,10 +14,10 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3211',
   });
 
-  const port = process.env.NEST_PORT ?? 3001;
+  const port = process.env.NEST_PORT ?? 3210;
   await app.listen(port);
   console.log(`API listening on http://localhost:${port}/api`);
 }

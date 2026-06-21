@@ -1,0 +1,20 @@
+{
+  "accounts": {
+    "oanda_paper_1": {
+      "broker": "oanda",
+      "env": "practice",
+      "api_key_env": "6e0162d4174e64323547d33724ef4d96-c869239e5b3e8eeceaa76076bee81bce",
+      "account_id_env": "101-004-26017777-003"
+    },
+    "oanda_paper_2": {
+      "broker": "oanda",
+      "env": "practice",
+      "api_key_env": "6e0162d4174e64323547d33724ef4d96-c869239e5b3e8eeceaa76076bee81bce",
+      "account_id_env": "101-004-26017777-003"
+    },
+    "ib_paper_1": {
+      "broker": "interactive_brokers",
+      "enabled": false
+    }
+  }
+}

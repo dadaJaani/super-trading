@@ -1,0 +1,16 @@
+{
+  "id": "gold_sma_v1",
+  "title": "Gold SMA H1 (shadow)",
+  "description": "SMA 9/21 crossover on XAU/USD H1. Logs signals only — no OANDA orders.",
+  "account": "oanda_paper_1",
+  "strategy": "gold_sma_v1",
+  "instrument": "XAU_USD",
+  "enabled": true,
+  "params": {
+    "granularity": "H1",
+    "fast_period": 9,
+    "slow_period": 21,
+    "units": 1,
+    "execute_trades": false
+  }
+}

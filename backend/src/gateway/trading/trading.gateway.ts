@@ -10,17 +10,17 @@ import { RedisService } from '../../redis/redis.service';
 
 const REDIS_CHANNELS = [
   'candles:*',
-  'news:*',
-  'calendar:*',
+  'price:*',
   'signal:*',
   'trade:*',
   'bot:state:*',
+  'balance:update',
   'system:*',
 ];
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3211',
   },
 })
 export class TradingGateway implements OnGatewayInit, OnGatewayConnection {
@@ -52,7 +52,9 @@ export class TradingGateway implements OnGatewayInit, OnGatewayConnection {
     if (channel.startsWith('trade:closed:')) return 'trade:closed';
     if (channel.startsWith('signal:')) return 'signal:generated';
     if (channel.startsWith('candles:')) return 'candle:close';
+    if (channel.startsWith('price:')) return 'price:update';
     if (channel === 'news:scored') return 'news:scored';
+    if (channel === 'balance:update') return 'balance:update';
     if (channel === 'system:error') return 'system:error';
     return channel;
   }

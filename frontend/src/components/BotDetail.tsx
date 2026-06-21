@@ -1,6 +1,9 @@
 import type { Bot, BotState } from '../store/tradingStore';
+import { BalanceChart } from './BalanceChart';
+import { DecisionLog } from './DecisionLog';
+import { OpenTradesList } from './OpenTradesList';
+import { PriceChart } from './PriceChart';
 import { SignalPanel } from './SignalPanel';
-import { TradeChart } from './TradeChart';
 
 interface BotDetailProps {
   bot: Bot | undefined;
@@ -16,6 +19,10 @@ export function BotDetail({ bot, botState }: BotDetailProps) {
     );
   }
 
+  const config = bot.config ?? {};
+  const granularity = String(config.granularity ?? 'M5');
+  const fastPeriod = Number(config.fast_period ?? 9);
+  const slowPeriod = Number(config.slow_period ?? 21);
   const openTrade = botState?.openTrade;
 
   return (
@@ -23,30 +30,39 @@ export function BotDetail({ bot, botState }: BotDetailProps) {
       <div>
         <h2 className="text-xl font-semibold text-slate-100">{bot.name ?? bot.id}</h2>
         <p className="text-sm text-slate-400">
-          {bot.instrument} · {bot.strategy} · {bot.status}
+          {bot.instrument} · SMA {fastPeriod}/{slowPeriod} · {granularity} · {bot.status}
         </p>
       </div>
 
-      <TradeChart instrument={bot.instrument ?? 'XAU_USD'} />
+      <PriceChart
+        instrument={bot.instrument ?? 'XAU_USD'}
+        granularity={granularity}
+        fastPeriod={fastPeriod}
+        slowPeriod={slowPeriod}
+      />
+      <BalanceChart />
+      <OpenTradesList botId={bot.id} />
+      <DecisionLog botId={bot.id} />
 
-      <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
-        <h3 className="mb-2 text-sm font-medium text-slate-300">Open Trade</h3>
-        {openTrade ? (
-          <div className="font-mono text-sm text-slate-200">
-            {openTrade.direction} {openTrade.units} units @ ${openTrade.openPrice.toFixed(2)}
-            <div className="mt-1 text-slate-400">
-              Current: ${openTrade.currentPrice.toFixed(2)} | P&L:{' '}
-              <span className={openTrade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                {openTrade.pnl >= 0 ? '+' : ''}${openTrade.pnl.toFixed(2)}
-              </span>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+          <h3 className="mb-2 text-sm font-medium text-slate-300">Live Position</h3>
+          {openTrade ? (
+            <div className="font-mono text-sm text-slate-200">
+              {openTrade.direction} {openTrade.units} units @ ${openTrade.openPrice.toFixed(2)}
+              <div className="mt-1 text-slate-400">
+                Current: ${openTrade.currentPrice.toFixed(2)} | P&L:{' '}
+                <span className={openTrade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                  {openTrade.pnl >= 0 ? '+' : ''}${openTrade.pnl.toFixed(2)}
+                </span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">No open trade</p>
-        )}
+          ) : (
+            <p className="text-sm text-slate-500">No open position</p>
+          )}
+        </div>
+        <SignalPanel signal={botState?.lastSignal ?? null} />
       </div>
-
-      <SignalPanel signal={botState?.lastSignal ?? null} />
     </div>
   );
 }
