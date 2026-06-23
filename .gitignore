@@ -36,6 +36,9 @@ bots/ml/models/*.pt
 # Bot decision logs (local only)
 bots/logs/
 
+# ML export artifacts (Parquet)
+bots/data/
+
 # Local broker account overrides (secrets via env var names)
 bots/config/accounts.local.json
 

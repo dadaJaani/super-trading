@@ -18,7 +18,7 @@ Locally hosted multi-bot trading platform:
 | `backend/` | NestJS, TypeORM, Socket.IO | REST API + WebSocket relay (no trading logic) |
 | `frontend/` | Vite, React, Tailwind, Zustand | Real-time dashboard |
 
-Infrastructure: TimescaleDB (Postgres) + Redis via Docker Compose.
+Infrastructure: PostgreSQL 16 + Redis via Docker Compose (plain Postgres, not TimescaleDB in local dev).
 
 ## Hard rules
 
@@ -44,12 +44,20 @@ docs/           Design + status docs
 
 ```bash
 cp .env.example .env
-make up          # Postgres + Redis
 make install     # npm + uv deps
-make dev-api     # :3001
-make dev-fe      # :5173
-make dev-bots    # Python engine
+
+# Recommended — separate processes (bots stay up while you work on the dashboard)
+make run-trading    # terminal 1: Postgres + Redis + Python bots
+make run-dashboard  # terminal 2: Postgres + Redis + Nest API + Vite FE
+
+# Or infrastructure + individual services (no bootstrap scripts)
+make up             # Postgres + Redis
+make dev-api        # :3210
+make dev-fe         # :3211
+make dev-bots       # Python engine only
 ```
+
+`make start` runs all app processes in one terminal — prefer `run-trading` + `run-dashboard` for daily work.
 
 If ports 5432/6379 are in use, override `POSTGRES_PORT`, `REDIS_PORT`, `DATABASE_URL`, and `REDIS_URL` in `.env`.
 
@@ -59,8 +67,9 @@ If ports 5432/6379 are in use, override `POSTGRES_PORT`, `REDIS_PORT`, `DATABASE
 
 - Package manager: **uv** (`uv sync`, `uv run python main.py`)
 - Settings: `shared/config.py` via pydantic-settings, reads root `.env`
-- New bots extend `strategies/base_bot.py`
-- Shared services are singletons started from `main.py`
+- **Bot definitions:** `bots/config/accounts.json` + `bots/config/bots/*.json`; loaded by `shared/bot_registry.py`, synced to Postgres via `bot_sync`
+- New strategies: implement in `bots/strategies/`, register in `STRATEGY_CLASSES` in `bot_registry.py`
+- Shared market services started from `main.py` (streamer, price poller, balance tracker)
 - Stub files have docstrings and typed signatures — replace stubs with real logic incrementally
 
 ### Backend (`backend/`)
@@ -100,19 +109,24 @@ GET /api/bots
 GET /api/bots/:id
 GET /api/bots/:id/trades
 GET /api/bots/:id/signals
+GET /api/candles
 GET /api/news
 GET /api/performance
+GET /api/performance/balance
+GET /api/stream/market          SSE — live price + candle relay from Redis
 ```
+
+WebSocket (Socket.IO on same origin as API): bot state, trades, signals, balance.
 
 ## What to work on next
 
 See [docs/project-status.md](docs/project-status.md). Priority order:
 
-1. OANDA price streamer (real ticks → DB + Redis)
-2. Historical data + ML training pipeline
-3. First real bot with paper trading
-4. End-to-end Redis → WebSocket → dashboard flow
-5. News/sentiment layer
+1. Historical candle bootstrap (`fetch_data.py`) + per-bot ML training pipeline
+2. First ML bot (`gold_momentum_v1`) with `model_registry`
+3. Central market data improvements (M1/M30 granularities; optional tick stream later)
+4. News/sentiment layer (stubs exist)
+5. Paper trading soak test + kill switch / error recovery
 
 ## Testing expectations
 
@@ -129,4 +143,4 @@ See [docs/project-status.md](docs/project-status.md). Priority order:
 - Enabling TypeORM `synchronize: true`
 - Assuming design doc ✓ marks mean code is implemented
 - Forgetting to update `DATABASE_URL` when changing `POSTGRES_PORT`
-- Adding ML dependencies to `pyproject.toml` before they're needed
+- Adding heavy ML dependencies before they're needed (light deps like `pyarrow` for export are fine)

@@ -1,6 +1,15 @@
 # Project Status
 
-Current state of the super-trading platform. For full architecture, see [trading-bot-system-design.md](./trading-bot-system-design.md).
+**Living document** — what is implemented vs what is next. For how to run the system, see [README.md](../README.md). For target architecture (not current reality), see [trading-bot-system-design.md](./trading-bot-system-design.md).
+
+| Doc | Use for |
+|-----|---------|
+| This file | Built vs backlog, pitfalls |
+| README | Commands, testing, env |
+| trading-bot-system-design.md | Vision only (banner at top) |
+| AGENTS.md | AI/human coding rules |
+
+Current state of the super-trading platform.
 
 ## Bot configuration (JSON)
 
@@ -21,7 +30,7 @@ On engine start, `bot_sync` upserts all bot JSON files into Postgres `bots` (tit
 1. Create `bots/config/bots/my_bot.json` with `id`, `title`, `description`, `account`, `strategy`, `instrument`, `enabled`, `params`.
 2. Register the strategy class in `bots/shared/bot_registry.py` (`STRATEGY_CLASSES`).
 3. Implement strategy in `bots/strategies/`.
-4. Restart `make dev-bots` (syncs to DB automatically).
+4. Restart `make run-trading` (syncs to DB automatically).
 
 Test connectivity: `make test-oanda` or `uv run python scripts/test_oanda.py --account oanda_paper_1`.
 
@@ -37,6 +46,23 @@ Price data uses **OANDA REST polling** — there is no tick WebSocket stream yet
 
 Nest relays Redis to the frontend via SSE (`/api/stream/market`) and Socket.IO. Historical chart bars come from `/api/candles` (backfilled on streamer start).
 
+## Run commands (separate trading vs dashboard)
+
+| Command | Runs | Use when |
+|---------|------|----------|
+| `make run-trading` | Docker + Python bots | Live paper trading — leave running |
+| `make run-dashboard` | Docker + Nest + Vite | FE/API dev — restart without stopping bots |
+| `make dev-bots` / `make dev-api` / `make dev-fe` | Single service, no Docker bootstrap | Power users with `make up` already |
+| `make start` | All in one terminal | Rare full-stack smoke test |
+
+Trade opens/closes log `TRADE OPEN` / `TRADE CLOSE` lines to the run-trading console.
+
+## ML training data flow
+
+1. **Live:** `run-trading` appends completed bars to Postgres `candles`.
+2. **Export:** `make export-candles INSTRUMENT=XAU_USD GRANULARITY=M5` → `bots/data/candles/.../candles.parquet`.
+3. **Train:** per-bot scripts in `bots/ml/train/` (no generic `make train`). Re-export before each training run.
+
 ---
 
 ## What's done
@@ -47,7 +73,7 @@ Nest relays Redis to the frontend via SSE (`/api/stream/market`) and Socket.IO. 
 - [x] **Database schema** — `candles`, `bots`, `trades`, `signals`, `news`, `balance_snapshots` via [docker/postgres/init.sql](../docker/postgres/init.sql)
 - [x] **Bot JSON config** — `bots/config/accounts.json` + per-bot files; sync to Postgres on engine start
 - [x] **Environment template** — Root [`.env.example`](../.env.example) shared by all services (multi-account OANDA vars)
-- [x] **Dev tooling** — [Makefile](../Makefile) with `up`, `install`, `dev`, `start`, `db-reset`
+- [x] **Dev tooling** — [Makefile](../Makefile) with `run-trading`, `run-dashboard`, `export-candles`, `db-reset`
 
 ### Python (`bots/`)
 
@@ -74,45 +100,48 @@ Nest relays Redis to the frontend via SSE (`/api/stream/market`) and Socket.IO. 
 
 ## What's not done yet
 
-Everything below is **stubbed or missing business logic**. The design doc Phase 1 checklist marks many items with ✓ — those refer to the target build, not current implementation.
+Honest gaps as of the SMA paper-trading milestone. The [design doc](./trading-bot-system-design.md) Phase 1 checklist is aspirational — use this section for reality.
 
-### Week 1 — Foundation (next priority)
+### Market data
 
-- [ ] OANDA paper account + API keys in `.env`
-- [ ] Real `oanda_streamer.py` — connect, receive ticks, aggregate candles, write to TimescaleDB, publish to Redis
+- [x] REST polling for M5/H1 candles + mid-price (30s / 15s)
+- [x] Backfill on streamer start, Postgres `candles` + Redis publish
+- [ ] OANDA tick **WebSocket** stream (design target; not implemented)
+- [ ] M1 / M30 (and other) granularities in central streamer
+- [ ] Explicit single “market data service” module (streamer exists but not fully isolated from bot process)
 
-### Week 2 — Data + ML
+### ML pipeline
 
-- [ ] `fetch_data.py` — download historical XAU/USD candles
-- [ ] `build_features.py` — indicators and labels
-- [ ] `train_model.py` — first XGBoost model
-- [ ] `evaluate.py` — backtest / walk-forward
+- [x] Postgres live candles + `make export-candles` → Parquet
+- [ ] `fetch_data.py` — bulk historical download (5–10 years) into Postgres
+- [ ] `build_features.py`, `train_model.py`, `evaluate.py` — stubs only
+- [ ] `model_registry.py` — load `.pkl` / `.pt` at runtime
+- [ ] First ML bot (`gold_momentum_v1`) wired to predictions
 
-### Week 3 — First Bot
+### Bots & execution
 
-- [ ] Wire `gold_momentum_v1` to real model predictions
-- [ ] `model_registry.py` — load `.pkl` / `.pt` files
-- [ ] `notifier.py` — Pushover integration
-- [ ] Real order execution via OANDA
+- [x] SMA crossover bots (H1 shadow, M5 paper) via JSON config + multi-account OANDA
+- [x] Trade/signal persistence, Redis → Nest → dashboard
+- [ ] `gold_sentiment_v1`, momentum/ML bots — stubs
+- [ ] Kill switch (max drawdown halt, stop-all)
+- [ ] Robust reconnect / partial-failure handling
 
-### Week 4 — News + LLM
+### News & alerts
 
-- [ ] `news_fetcher.py` — RSS + Finnhub
-- [ ] `sentiment_engine.py` — Claude API scoring
-- [ ] `calendar_monitor.py` — high-impact event alerts
+- [ ] `news_fetcher.py`, `sentiment_engine.py`, `calendar_monitor.py` — stubs
+- [ ] `notifier.py` — Pushover
 
-### Week 5 — API + Dashboard (partially scaffolded)
+### Dashboard (polish)
 
-- [x] REST endpoints exist but return DB data only (no live bot state yet)
-- [x] WebSocket gateway exists but needs end-to-end event flow from Python
-- [ ] Real-time P&L, open trades, signal log driven by live Redis events
-- [ ] Price chart with trade overlays
+- [x] Price chart, balance chart, decision log, open trades, bot descriptions
+- [ ] Trade overlays on price chart
+- [ ] Multi-account balance display
 
-### Week 6 — Paper Trading
+### Production readiness
 
-- [ ] Full system run on OANDA paper account
-- [ ] 2+ weeks monitoring before any live capital
-- [ ] Error handling for connection drops, restarts, partial failures
+- [ ] 2+ weeks continuous paper soak test
+- [ ] Tighter Redis channel subscriptions (dev uses broad patterns)
+- [ ] Live capital path with explicit safeguards (not started)
 
 ---
 
@@ -120,12 +149,11 @@ Everything below is **stubbed or missing business logic**. The design doc Phase 
 
 Work in this order — each step should be testable before moving on:
 
-1. **OANDA streamer** — Get ticks flowing into `candles` table and Redis `candles:XAU_USD:H1`
-2. **Historical data + first model** — Train and save a model; load it in `model_registry`
-3. **First real bot** — `gold_momentum_v1` consumes candles + model output; paper trades only
-4. **End-to-end event flow** — Bot publishes to Redis → Nest relays → dashboard updates
-5. **News + sentiment layer** — Add as a filter on top of the working bot
-6. **Paper trading soak test** — Run continuously for 2 weeks
+1. **Historical bootstrap** — implement `fetch_data.py` to backfill years of M5/H1 (then M1/M30 as needed)
+2. **ML bot** — features + train + `model_registry`; train from exported Parquet per bot
+3. **Granularities** — add M1/M30 to central streamer for future strategies
+4. **News/sentiment** — wire stubs as filters on a working ML bot
+5. **Soak test** — `make run-trading` for 2+ weeks; add kill switch and reconnect hardening
 
 ---
 
@@ -154,12 +182,12 @@ Work in this order — each step should be testable before moving on:
 - **Socket.IO URL** — `VITE_WS_URL` must be `http://localhost:3210`, not `ws://`. The Socket.IO client expects an HTTP origin.
 - **Folder names vs design doc** — The design doc uses `api/` and `dashboard/`; this repo uses `backend/` and `frontend/`. Same roles, different names.
 - **Design doc checkmarks** — The Phase 1 section in the design doc describes the target build, not completed work. Use this file for actual status.
-- **TimescaleDB init runs once** — Changing `init.sql` requires `make db-reset` to reapply (drops data).
+- **`init.sql` runs once per volume** — Changing schema requires `make db-reset` (drops data).
 - **Redis pub/sub pattern** — The gateway uses `psubscribe('*')` for development. Tighten channel patterns before production.
 
 ### Dependency notes
 
-- **Python**: managed with `uv` (see `bots/pyproject.toml`). ML deps (`pandas`, `scikit-learn`, etc.) are not installed yet.
+- **Python**: managed with `uv` ([`bots/pyproject.toml`](../bots/pyproject.toml)). `pyarrow` installed for Parquet export; full ML stack (`pandas`, `scikit-learn`, etc.) not added yet.
 - **Node**: npm in `backend/` and `frontend/` separately — no root workspace yet.
 - **Docker required** for Postgres and Redis. Apps run on the host, not in containers.
 
@@ -171,14 +199,23 @@ Work in this order — each step should be testable before moving on:
 |---------|-------------|
 | Frontend | http://localhost:3211 |
 | Backend API | http://localhost:3210/api |
+| SSE market stream | http://localhost:3210/api/stream/market |
 | WebSocket | http://localhost:3210 (Socket.IO) |
 | Postgres | localhost:5432 |
 | Redis | localhost:6379 |
 
+### Makefile (daily)
+
+| Command | Use |
+|---------|-----|
+| `make run-trading` | Live bots — leave running |
+| `make run-dashboard` | API + FE — restart without stopping bots |
+| `make export-candles` | Snapshot Postgres candles to Parquet |
+| `make test-oanda` | OANDA connectivity check |
+
 ```bash
 cp .env.example .env
-make up && make install
-make dev-api   # terminal 1
-make dev-fe    # terminal 2
-make dev-bots  # terminal 3
+make install
+make run-trading    # terminal 1 — bots
+make run-dashboard  # terminal 2 — API + FE
 ```

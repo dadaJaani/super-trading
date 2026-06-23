@@ -1,4 +1,7 @@
-.PHONY: up down install setup start dev dev-api dev-fe dev-bots db-reset logs stop wait-db
+.PHONY: up down install setup start run-trading run-dashboard dev dev-api dev-fe dev-bots db-reset logs stop wait-db export-candles test-oanda smoke-trade diagnose
+
+INSTRUMENT ?= XAU_USD
+GRANULARITY ?= M5
 
 up:
 	docker compose up -d
@@ -18,8 +21,20 @@ install:
 setup:
 	@bash scripts/setup.sh
 
-# One command: Docker + API + dashboard + bots (single terminal)
+# Trading bot engine only (Postgres + Redis + Python bots)
+run-trading:
+	@bash scripts/run-trading.sh
+
+# Nest API + React dashboard only (Postgres + Redis + API + FE)
+run-dashboard:
+	@bash scripts/run-dashboard.sh
+
+# Full stack in one terminal — prefer run-trading + run-dashboard in separate terminals
 start:
+	@echo "warning: make start runs everything in one process group."
+	@echo "  For live bots + FE dev, use: make run-trading  (terminal 1)"
+	@echo "                              make run-dashboard (terminal 2)"
+	@echo ""
 	@bash scripts/start-all.sh
 
 dev-api:
@@ -31,7 +46,7 @@ dev-fe:
 dev-bots:
 	cd bots && PATH="$$HOME/.local/bin:$$PATH" uv run python main.py
 
-# Alias for start
+# Alias for start (deprecated)
 dev: start
 
 db-reset:
@@ -56,6 +71,11 @@ wait-db:
 # Stop app containers (keeps data volumes)
 stop:
 	docker compose down
+
+# Export Postgres candles to Parquet for ML training (per instrument/granularity)
+export-candles:
+	cd bots && PATH="$$HOME/.local/bin:$$PATH" uv run python -m ml.train.export_candles \
+		--instrument $(INSTRUMENT) --granularity $(GRANULARITY)
 
 test-oanda:
 	cd bots && PATH="$$HOME/.local/bin:$$PATH" uv run python scripts/test_oanda.py

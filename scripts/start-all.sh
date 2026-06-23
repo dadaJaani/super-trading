@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Start Docker (Postgres + Redis) and all app services in one terminal.
+# Prefer: make run-trading + make run-dashboard in separate terminals.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

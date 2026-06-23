@@ -30,5 +30,6 @@ make install
 make db-reset
 
 echo ""
-echo -e "${GREEN}Setup complete.${NC} Start everything with:"
-echo "  make start"
+echo -e "${GREEN}Setup complete.${NC} Start with:"
+echo "  make run-trading    # terminal 1 — bots"
+echo "  make run-dashboard  # terminal 2 — API + dashboard"

@@ -10,8 +10,8 @@ Read [AGENTS.md](../../AGENTS.md) and [docs/project-status.md](../../docs/projec
 ## Architecture (non-negotiable)
 
 - `bots/` (Python) — all trading logic, ML, OANDA, Redis publish
-- `backend/` (NestJS) — REST + WebSocket relay only; never touch OANDA
-- `frontend/` (Vite React) — dashboard; consumes API + Socket.IO
+- `backend/` (NestJS) — REST + WebSocket/SSE relay only; never touch OANDA
+- `frontend/` (Vite React) — dashboard; consumes API + Socket.IO + SSE
 - Redis pub/sub connects Python to Nest; Nest forwards to the frontend
 
 ## Before editing
@@ -24,15 +24,20 @@ Read [AGENTS.md](../../AGENTS.md) and [docs/project-status.md](../../docs/projec
 ## Run locally
 
 ```bash
-make up && make install
-make dev-api   # :3001
-make dev-fe    # :5173
+make install
+make run-trading    # terminal 1: Postgres + Redis + Python bots (:3210 not used)
+make run-dashboard  # terminal 2: API :3210 + FE :3211
+
+# Or without bootstrap scripts (after make up):
+make dev-api   # :3210
+make dev-fe    # :3211
 make dev-bots
 ```
 
 ## Pitfalls
 
-- `VITE_WS_URL` must be `http://` (Socket.IO), not `ws://`
+- `VITE_WS_URL` must be `http://localhost:3210` (Socket.IO), not `ws://`
 - Design doc uses `api/`/`dashboard/` — repo uses `backend/`/`frontend/`
-- Design doc Phase 1 checkmarks are targets, not done work
+- Design doc Phase 1 checkmarks are targets, not done work — see project-status.md
 - Paper trade only until explicitly approved for live
+- New bots: JSON in `bots/config/bots/` + register in `bot_registry.py`

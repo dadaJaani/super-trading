@@ -1,5 +1,10 @@
 # Trading Bot Platform — System Design
 
+> **This document describes the target architecture and product vision.**  
+> For what is actually implemented today, see [project-status.md](./project-status.md).  
+> Folder names here (`api/`, `dashboard/`) map to `backend/` and `frontend/` in the repo.  
+> Ports in diagrams (3000/3001) differ from current dev defaults (3211/3210).
+
 ## Overview
 
 A locally hosted, multi-bot trading platform. Python handles all ML, signal generation, and bot execution. NestJS serves as the API/orchestration layer. React provides a real-time dashboard. OANDA is the first broker integration (gold, forex). Designed to scale to 15+ bots with shared or independent brains.

@@ -19,6 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+logging.getLogger("trade.console").setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 _running = True

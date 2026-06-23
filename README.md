@@ -21,13 +21,17 @@ cp .env.example .env          # then add OANDA_API_KEY + OANDA_ACCOUNT_ID
 make setup                    # install deps + create DB schema + seed bots
 ```
 
-**Every day — one command starts everything:**
+**Every day — run trading and dashboard separately:**
 
 ```bash
-make start
+# Terminal 1 — live bots (leave running)
+make run-trading
+
+# Terminal 2 — API + dashboard (restart freely without stopping bots)
+make run-dashboard
 ```
 
-That starts Postgres + Redis (Docker), then the API, dashboard, and bot engine in one terminal.
+Each command starts Postgres + Redis if needed. Ctrl+C in the dashboard terminal does not stop bots.
 
 | What            | URL |
 |-----------------|-----|
@@ -35,9 +39,11 @@ That starts Postgres + Redis (Docker), then the API, dashboard, and bot engine i
 | API             | http://localhost:3210/api |
 | WebSocket       | http://localhost:3210 |
 
-Press **Ctrl+C** to stop the app processes (Docker keeps running). Use `make stop` to stop Docker too.
+Trade opens/closes print `TRADE OPEN` / `TRADE CLOSE` lines in the **run-trading** terminal.
 
-Or run services individually:
+`make start` still runs everything in one terminal (useful for smoke tests); prefer the split commands above.
+
+Or run services individually (no Docker bootstrap):
 
 ```bash
 make up         # Postgres + Redis only
@@ -46,16 +52,55 @@ make dev-fe     # Vite dashboard on http://localhost:3211
 make dev-bots   # Python bot engine
 ```
 
+## ML training data (Postgres + Parquet)
+
+While `make run-trading` is collecting bars, completed candles land in Postgres `candles`. Before training a bot-specific model, export the granularity that bot uses:
+
+```bash
+make export-candles INSTRUMENT=XAU_USD GRANULARITY=M5    # e.g. bot 1
+make export-candles INSTRUMENT=XAU_USD GRANULARITY=M30   # e.g. bot 2
+```
+
+Output: `bots/data/candles/{instrument}/{granularity}/candles.parquet` (gitignored).
+
+Then run **per-bot** training scripts (no generic `make train`):
+
+```bash
+cd bots && uv run python -m ml.train.build_features --bot gold_momentum_v1 ...
+cd bots && uv run python -m ml.train.train_model --bot gold_momentum_v1 ...
+```
+
+Re-export before each training run to include new bars collected since the last export.
+
 ## Project structure
 
 ```
 super-trading/
-├── bots/       # Python bot engine (ML, OANDA, Redis pub/sub)
-├── backend/    # NestJS REST API + WebSocket gateway
-├── frontend/   # React dashboard (Vite + Tailwind)
-├── docker/     # Database init scripts
-└── docs/       # System design
+├── bots/
+│   ├── config/          # accounts.json + per-bot JSON (no secrets)
+│   ├── strategies/      # bot logic
+│   ├── shared/          # OANDA, Redis, streamer, bot_registry
+│   ├── ml/train/        # export_candles, training stubs
+│   └── data/            # Parquet exports (gitignored)
+├── backend/             # NestJS REST API + WebSocket/SSE relay
+├── frontend/            # React dashboard (Vite + Tailwind)
+├── docker/              # Postgres init SQL
+└── docs/                # Design + status
 ```
+
+## Makefile commands
+
+| Command | What it runs |
+|---------|----------------|
+| `make setup` | First time: `.env`, install, `db-reset` |
+| `make run-trading` | Docker + Python bots only |
+| `make run-dashboard` | Docker + Nest API + Vite FE |
+| `make start` | All three in one terminal (smoke test; prefer split above) |
+| `make up` | Postgres + Redis only |
+| `make dev-bots` / `dev-api` / `dev-fe` | Single service, no Docker bootstrap |
+| `make export-candles` | Postgres → Parquet (`INSTRUMENT`, `GRANULARITY`) |
+| `make test-oanda` / `smoke-trade` / `diagnose` | OANDA + system checks |
+| `make db-reset` | Wipe DB volume, re-apply `init.sql` |
 
 ## Services
 
@@ -66,16 +111,19 @@ super-trading/
 | PostgreSQL | localhost:5432          |
 | Redis      | localhost:6379          |
 
-## API endpoints (stub)
+## API endpoints
 
-- `GET /api/bots` — list bots
+- `GET /api/bots` — list bots (synced from JSON config when bots run)
 - `GET /api/bots/:id` — bot detail
-- `GET /api/bots/:id/trades` — trade history
+- `GET /api/bots/:id/trades` — trade history (`?status=open` supported)
 - `GET /api/bots/:id/signals` — signal log
+- `GET /api/candles` — historical OHLCV (`instrument`, `granularity`, `limit`)
 - `GET /api/news` — recent news feed
-- `GET /api/performance` — aggregate P&L
+- `GET /api/performance` — aggregate P&L summary
+- `GET /api/performance/balance` — balance history for chart
+- `GET /api/stream/market` — SSE relay of Redis price + candle events
 
-WebSocket events are relayed from Redis via the NestJS gateway.
+Socket.IO on `http://localhost:3210` relays bot state, trades, signals, and balance updates from Redis.
 
 ## Testing OANDA and the SMA bots
 
@@ -86,7 +134,8 @@ make up
 make test-oanda      # read-only: balance, price, M5/H1 candles, open trades
 make smoke-trade     # open + close 1 paper unit on XAU/USD
 make diagnose        # candle counts, signal counts, SMA preview
-make start           # full stack
+make run-trading     # bots only
+make run-dashboard   # API + FE only
 ```
 
 Open **http://localhost:3211** — default bot is **Gold SMA M5 Test** (faster signals than H1).
@@ -110,7 +159,7 @@ Open **http://localhost:3211** — default bot is **Gold SMA M5 Test** (faster s
 make db-reset
 ```
 
-This drops volumes and re-runs the init SQL (schema + seed bots including `gold_sma_m5_v1`).
+This drops volumes and re-runs [docker/postgres/init.sql](docker/postgres/init.sql). SMA bots are defined in `bots/config/bots/*.json` and upserted to Postgres when you start `make run-trading`.
 
 Add `uv` to your PATH if needed (after install):
 
@@ -144,7 +193,9 @@ make up
 
 Copy `.env.example` to `.env` and fill in external API keys when ready:
 
-- `OANDA_API_KEY` / `OANDA_ACCOUNT_ID` — OANDA paper trading
+- `OANDA_API_KEY` / `OANDA_ACCOUNT_ID` — primary OANDA paper account (`oanda_paper_1`)
+- `OANDA_API_KEY_2` / `OANDA_ACCOUNT_ID_2` — optional second account (`oanda_paper_2`)
+- `OANDA_ENV` — `practice` or `live`
 - `ANTHROPIC_API_KEY` — LLM sentiment scoring
 - `PUSHOVER_TOKEN` / `PUSHOVER_USER` — mobile notifications
 - `FINNHUB_API_KEY` — economic calendar

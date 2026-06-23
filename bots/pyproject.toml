@@ -11,6 +11,7 @@ dependencies = [
     "oandapyV20>=0.6",
     "requests>=2.31",
     "six>=1.16",
+    "pyarrow>=15.0",
 ]
 
 # Future ML / broker integrations (uncomment when needed):

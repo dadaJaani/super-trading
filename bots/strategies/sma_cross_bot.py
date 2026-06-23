@@ -250,9 +250,21 @@ class SmaCrossBot(BaseBot):
             if current["direction"] == direction:
                 return False
 
+            from shared.trade_console import log_trade_console
+
             close_resp = self._oanda.close_trade(current["oanda_trade_id"])
             pnl = extract_close_pl(close_resp)
             close_trade_record(current["oanda_trade_id"], price, pnl)
+            log_trade_console(
+                "CLOSE",
+                self.id,
+                self.instrument,
+                current["direction"],
+                current["units"],
+                price,
+                pnl=pnl,
+                trade_id=current["oanda_trade_id"],
+            )
             log_decision(
                 self.id,
                 "trade_closed",
@@ -296,6 +308,18 @@ class SmaCrossBot(BaseBot):
             "unrealized_pl": 0.0,
         }
         log_decision(self.id, "trade_opened", signal=direction, acted=True, trade_id=trade_id)
+
+        from shared.trade_console import log_trade_console
+
+        log_trade_console(
+            "OPEN",
+            self.id,
+            self.instrument,
+            direction,
+            signed_units,
+            price,
+            trade_id=trade_id,
+        )
 
         if self._redis:
             self._redis.publish(
